@@ -1,4 +1,5 @@
 name: Build Vietnamese Mod APK
+# Re-run build from latest source and Vietnamese menu translations
 on:
   push:
     paths:
