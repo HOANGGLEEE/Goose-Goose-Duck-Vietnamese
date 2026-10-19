@@ -1,0 +1,88 @@
+name: Build Vietnamese Mod APK
+on:
+  push:
+    paths:
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Get upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: GameSketchers/Goose-Goose-Duck-Android-Mod
+          ref: main
+          path: source
+      - name: Translate menu strings only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          d = {
+            "Unlimited Vision":"Tầm nhìn không giới hạn",
+            "Remove Roof":"Ẩn mái che",
+            "No Vent Cooldown":"Không hồi chiêu ống thông gió",
+            "See Ghosts":"Nhìn thấy hồn ma",
+            "No Clip":"Đi xuyên tường",
+            "Drone View":"Góc nhìn trên cao",
+            "Speed Boost":"Tăng tốc độ",
+            "ESP Settings":"Cài đặt ESP",
+            "ESP Enabled":"Bật ESP",
+            "ESP Lines":"Đường chỉ ESP",
+            "ESP Box":"Khung ESP",
+            "ESP Distance":"Khoảng cách ESP",
+            "ESP Names":"Tên người chơi ESP",
+            "Mini Map":"Bản đồ nhỏ",
+            "Show Mini Map":"Hiện bản đồ nhỏ",
+            "Touch Teleport (Map)":"Chạm bản đồ để dịch chuyển",
+            "Hear Dead Voice":"Nghe người đã chết",
+            "Hear Far Players":"Nghe người chơi ở xa",
+            "Auto Repair Sabotage":"Tự sửa phá hoại",
+            "Repair Sabotage Now":"Sửa phá hoại ngay",
+            "Auto Tasks":"Tự làm nhiệm vụ",
+            "Complete 1 Task":"Hoàn thành 1 nhiệm vụ",
+            "Auto Ready (Lobby)":"Tự sẵn sàng (phòng chờ)",
+            "Speed Multiplier":"Hệ số tốc độ",
+            "Debug Panel":"Bảng gỡ lỗi",
+            "Show Debug Info":"Hiện thông tin gỡ lỗi",
+            "Anti-Death [LOCAL]":"Chống chết [Cục bộ]",
+            "About":"Giới thiệu",
+            "Settings":"Cài đặt"
+          }
+          for name in ["Main.cpp","Menu/Menu.cpp"]:
+              p=Path("source/app/src/main/jni")/name
+              s=p.read_text(encoding="utf-8")
+              def tr(m):
+                  value=m.group(1)
+                  for a,b in sorted(d.items(),key=lambda v:-len(v[0])):
+                      value=value.replace(a,b)
+                  return 'OBFUSCATE("'+value+'")'
+              p.write_text(re.sub(r'OBFUSCATE\("([^"\n]*)"\)',tr,s),encoding="utf-8")
+          PY
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install NDK
+        run: sdkmanager --install "platforms;android-34" "build-tools;35.0.0" "ndk;28.2.13676358"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.2.1'
+      - name: Build debug APK
+        working-directory: source
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Goose-Goose-Duck-Vietnamese-APK
+          path: source/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
